@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Afinador de Guitarra</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #08080f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --accent: #00e5ff;
+    --accent2: #ff006e;
+    --accent3: #76ff03;
+    --warn: #ffab00;
+    --text: #e8e8f0;
+    --text-dim: #6b6b80;
+    --border: rgba(255,255,255,0.07);
+    --glow: 0 0 30px rgba(0,229,255,0.25);
+    --glow-green: 0 0 40px rgba(118,255,3,0.4);
+    --glow-red: 0 0 40px rgba(255,0,110,0.4);
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 0;
+    position: relative;
+  }
+
+  /* Ambient background */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(ellipse at 30% 20%, rgba(0,229,255,0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 80%, rgba(255,0,110,0.04) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 480px;
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    gap: 12px;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+  }
+
+  .logo {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900;
+    font-size: 16px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .mic-btn {
+    background: none;
+    border: 1.5px solid var(--border);
+    border-radius: 50px;
+    padding: 8px 18px;
+    color: var(--text-dim);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .mic-btn.active {
+    border-color: var(--accent2);
+    color: var(--accent2);
+    box-shadow: 0 0 15px rgba(255,0,110,0.3);
+    animation: pulse-btn 2s infinite;
+  }
+
+  @keyframes pulse-btn {
+    0%, 100% { box-shadow: 0 0 15px rgba(255,0,110,0.3); }
+    50% { box-shadow: 0 0 25px rgba(255,0,110,0.5); }
+  }
+
+  .mic-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: none;
+  }
+
+  .mic-btn.active .mic-dot {
+    animation: blink 1s infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+
+  /* Tuning selector */
+  .tuning-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .tuning-grid {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .tuning-chip {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .tuning-chip:hover { border-color: rgba(0,229,255,0.3); color: var(--text); }
+
+  .tuning-chip.selected {
+    background: rgba(0,229,255,0.1);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Main display */
+  .main-display {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    position: relative;
+  }
+
+  /* Big note display */
+  .note-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .note-big {
+    font-family: 'Orbitron', monospace;
+    font-weight: 900;
+    font-size: clamp(80px, 22vw, 120px);
+    line-height: 1;
+    color: var(--text);
+    transition: color 0.3s, text-shadow 0.3s;
+    letter-spacing: -2px;
+  }
+
+  .note-big.in-tune {
+    color: var(--accent3);
+    text-shadow: var(--glow-green);
+  }
+
+  .note-big.flat {
+    color: var(--accent);
+    text-shadow: var(--glow);
+  }
+
+  .note-big.sharp {
+    color: var(--accent2);
+    text-shadow: var(--glow-red);
+  }
+
+  .note-big.idle {
+    color: var(--text-dim);
+    text-shadow: none;
+  }
+
+  .freq-display {
+    font-family: 'Orbitron', monospace;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+  }
+
+  .freq-display span {
+    color: var(--text);
+    font-weight: 700;
+  }
+
+  /* Meter */
+  .meter-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .meter-track {
+    position: relative;
+    width: 100%;
+    height: 8px;
+    background: var(--surface2);
+    border-radius: 4px;
+    overflow: visible;
+  }
+
+  .meter-zones {
+    position: absolute;
+    inset: 0;
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+  }
+
+  .zone {
+    flex: 1;
+    opacity: 0.15;
+  }
+
+  .zone.left { background: linear-gradient(to right, var(--accent2), transparent); }
+  .zone.center { background: var(--accent3); opacity: 0.2; flex: 0.3; }
+  .zone.right { background: linear-gradient(to left, var(--accent), transparent); }
+
+  .meter-center-mark {
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 16px;
+    background: var(--text-dim);
+    border-radius: 1px;
+    opacity: 0.5;
+  }
+
+  .meter-needle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) translateX(0px);
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s;
+    box-shadow: 0 0 12px rgba(255,255,255,0.3);
+    z-index: 2;
+  }
+
+  .meter-needle.in-tune {
+    background: var(--accent3);
+    box-shadow: 0 0 20px rgba(118,255,3,0.7);
+    width: 20px;
+    height: 20px;
+  }
+
+  .meter-labels {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+
+  /* Status */
+  .status-badge {
+    padding: 6px 20px;
+    border-radius: 50px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border: 1.5px solid;
+    transition: all 0.3s;
+  }
+
+  .status-badge.idle { border-color: var(--border); color: var(--text-dim); }
+  .status-badge.in-tune { border-color: var(--accent3); color: var(--accent3); box-shadow: var(--glow-green); }
+  .status-badge.flat { border-color: var(--accent); color: var(--accent); box-shadow: var(--glow); }
+  .status-badge.sharp { border-color: var(--accent2); color: var(--accent2); box-shadow: var(--glow-red); }
+  .status-badge.listening { border-color: var(--warn); color: var(--warn); }
+
+  /* Cents display */
+  .cents-display {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+
+  /* Guitar strings */
+  .strings-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .strings-grid {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .string-btn {
+    flex: 1;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 0;
+  }
+
+  .string-btn:hover {
+    border-color: rgba(0,229,255,0.3);
+    background: var(--surface2);
+  }
+
+  .string-btn.active {
+    background: rgba(0,229,255,0.08);
+    border-color: var(--accent);
+    box-shadow: 0 0 15px rgba(0,229,255,0.15);
+  }
+
+  .string-number {
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    font-weight: 500;
+  }
+
+  .string-note {
+    font-family: 'Orbitron', monospace;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--text);
+    transition: color 0.2s;
+  }
+
+  .string-btn.active .string-note {
+    color: var(--accent);
+  }
+
+  .string-freq {
+    font-size: 9px;
+    color: var(--text-dim);
+    font-weight: 400;
+  }
+
+  /* Waveform visualizer */
+  .visualizer {
+    width: 100%;
+    height: 50px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  /* Loading state */
+  .permission-prompt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .permission-prompt p {
+    color: var(--text-dim);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .permission-prompt strong {
+    color: var(--accent);
+    display: block;
+    font-family: 'Orbitron', monospace;
+    font-size: 12px;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">TUNR</div>
+    <button class="mic-btn" id="micBtn" onclick="toggleMic()">
+      <span class="mic-dot"></span>
+      <span id="micLabel">Activar micrófono</span>
+    </button>
+  </div>
+
+  <!-- Tuning selector -->
+  <div class="tuning-section">
+    <div class="section-label">Afinación</div>
+    <div class="tuning-grid" id="tuningGrid"></div>
+  </div>
+
+  <!-- Main display -->
+  <div class="main-display">
+    <div class="note-display">
+      <div class="note-big idle" id="noteBig">–</div>
+      <div class="freq-display">
+        <span id="freqVal">– –</span> Hz
+      </div>
+    </div>
+
+    <!-- Meter -->
+    <div class="meter-container">
+      <div class="meter-track">
+        <div class="meter-zones">
+          <div class="zone left"></div>
+          <div class="zone center"></div>
+          <div class="zone right"></div>
+        </div>
+        <div class="meter-center-mark"></div>
+        <div class="meter-needle" id="needle"></div>
+      </div>
+      <div class="meter-labels">
+        <span>♭ Bajo</span>
+        <span>Afinado</span>
+        <span>Alto ♯</span>
+      </div>
+    </div>
+
+    <div class="cents-display" id="centsDisplay">– cents</div>
+    <div class="status-badge idle" id="statusBadge">Esperando señal</div>
+  </div>
+
+  <!-- Waveform -->
+  <div class="visualizer">
+    <canvas id="waveCanvas"></canvas>
+  </div>
+
+  <!-- Strings -->
+  <div class="strings-section">
+    <div class="section-label">Cuerdas</div>
+    <div class="strings-grid" id="stringsGrid"></div>
+  </div>
+
+</div>
+
+<script>
+// ─── TUNINGS ──────────────────────────────────────────────────────────────────
+const TUNINGS = {
+  'Estándar': [
+    { note: 'E2', freq: 82.41,  label: '6ª' },
+    { note: 'A2', freq: 110.00, label: '5ª' },
+    { note: 'D3', freq: 146.83, label: '4ª' },
+    { note: 'G3', freq: 196.00, label: '3ª' },
+    { note: 'B3', freq: 246.94, label: '2ª' },
+    { note: 'E4', freq: 329.63, label: '1ª' },
+  ],
+  'Drop D': [
+    { note: 'D2', freq: 73.42,  label: '6ª' },
+    { note: 'A2', freq: 110.00, label: '5ª' },
+    { note: 'D3', freq: 146.83, label: '4ª' },
+    { note: 'G3', freq: 196.00, label: '3ª' },
+    { note: 'B3', freq: 246.94, label: '2ª' },
+    { note: 'E4', freq: 329.63, label: '1ª' },
+  ],
+  'Open G': [
+    { note: 'D2', freq: 73.42,  label: '6ª' },
+    { note: 'G2', freq: 98.00,  label: '5ª' },
+    { note: 'D3', freq: 146.83, label: '4ª' },
+    { note: 'G3', freq: 196.00, label: '3ª' },
+    { note: 'B3', freq: 246.94, label: '2ª' },
+    { note: 'D4', freq: 293.66, label: '1ª' },
+  ],
+  'Open D': [
+    { note: 'D2', freq: 73.42,  label: '6ª' },
+    { note: 'A2', freq: 110.00, label: '5ª' },
+    { note: 'D3', freq: 146.83, label: '4ª' },
+    { note: 'F#3',freq: 185.00, label: '3ª' },
+    { note: 'A3', freq: 220.00, label: '2ª' },
+    { note: 'D4', freq: 293.66, label: '1ª' },
+  ],
+  'DADGAD': [
+    { note: 'D2', freq: 73.42,  label: '6ª' },
+    { note: 'A2', freq: 110.00, label: '5ª' },
+    { note: 'D3', freq: 146.83, label: '4ª' },
+    { note: 'G3', freq: 196.00, label: '3ª' },
+    { note: 'A3', freq: 220.00, label: '2ª' },
+    { note: 'D4', freq: 293.66, label: '1ª' },
+  ],
+  'Eb': [
+    { note: 'Eb2',freq: 77.78,  label: '6ª' },
+    { note: 'Ab2',freq: 103.83, label: '5ª' },
+    { note: 'Db3',freq: 138.59, label: '4ª' },
+    { note: 'Gb3',freq: 185.00, label: '3ª' },
+    { note: 'Bb3',freq: 233.08, label: '2ª' },
+    { note: 'Eb4',freq: 311.13, label: '1ª' },
+  ],
+};
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let currentTuning = 'Estándar';
+let selectedString = null;
+let audioCtx = null;
+let analyser = null;
+let source = null;
+let animFrame = null;
+let isListening = false;
+let smoothedFreq = null;
+
+// ─── BUILD UI ─────────────────────────────────────────────────────────────────
+function buildTuningGrid() {
+  const grid = document.getElementById('tuningGrid');
+  grid.innerHTML = '';
+  Object.keys(TUNINGS).forEach(name => {
+    const chip = document.createElement('button');
+    chip.className = 'tuning-chip' + (name === currentTuning ? ' selected' : '');
+    chip.textContent = name;
+    chip.onclick = () => selectTuning(name);
+    grid.appendChild(chip);
+  });
+}
+
+function buildStringsGrid() {
+  const grid = document.getElementById('stringsGrid');
+  grid.innerHTML = '';
+  const strings = TUNINGS[currentTuning];
+  strings.forEach((str, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'string-btn' + (selectedString === i ? ' active' : '');
+    btn.innerHTML = `
+      <span class="string-number">${str.label}</span>
+      <span class="string-note">${str.note}</span>
+      <span class="string-freq">${str.freq.toFixed(1)} Hz</span>
+    `;
+    btn.onclick = () => selectString(i);
+    grid.appendChild(btn);
+  });
+}
+
+function selectTuning(name) {
+  currentTuning = name;
+  selectedString = null;
+  buildTuningGrid();
+  buildStringsGrid();
+  resetDisplay();
+}
+
+function selectString(i) {
+  selectedString = selectedString === i ? null : i;
+  buildStringsGrid();
+}
+
+// ─── MICROPHONE ───────────────────────────────────────────────────────────────
+async function toggleMic() {
+  if (isListening) {
+    stopMic();
+  } else {
+    await startMic();
+  }
+}
+
+async function startMic() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }, video: false });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 8192;
+    analyser.smoothingTimeConstant = 0.5;
+    source = audioCtx.createMediaStreamSource(stream);
+    source.connect(analyser);
+    isListening = true;
+
+    const btn = document.getElementById('micBtn');
+    btn.classList.add('active');
+    document.getElementById('micLabel').textContent = 'Escuchando';
+    setStatus('listening', 'Escuchando...');
+    
+    detectPitch();
+    drawWave();
+  } catch(e) {
+    alert('No se pudo acceder al micrófono. Asegúrate de dar permiso.');
+    console.error(e);
+  }
+}
+
+function stopMic() {
+  isListening = false;
+  if (animFrame) cancelAnimationFrame(animFrame);
+  if (source) source.disconnect();
+  if (audioCtx) audioCtx.close();
+  audioCtx = null; analyser = null; source = null;
+
+  const btn = document.getElementById('micBtn');
+  btn.classList.remove('active');
+  document.getElementById('micLabel').textContent = 'Activar micrófono';
+  resetDisplay();
+}
+
+// ─── PITCH DETECTION (ACF) ────────────────────────────────────────────────────
+function autoCorrelate(buf, sampleRate) {
+  const SIZE = buf.length;
+  let rms = 0;
+  for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
+  rms = Math.sqrt(rms / SIZE);
+  if (rms < 0.01) return -1; // too quiet
+
+  let r1 = 0, r2 = SIZE - 1;
+  const thresh = 0.2;
+  for (let i = 0; i < SIZE / 2; i++) { if (Math.abs(buf[i]) < thresh) { r1 = i; break; } }
+  for (let i = 1; i < SIZE / 2; i++) { if (Math.abs(buf[SIZE - i]) < thresh) { r2 = SIZE - i; break; } }
+
+  const buf2 = buf.slice(r1, r2);
+  const c = new Float32Array(buf2.length).fill(0);
+
+  for (let i = 0; i < buf2.length; i++)
+    for (let j = 0; j < buf2.length - i; j++)
+      c[i] += buf2[j] * buf2[j + i];
+
+  let d = 0;
+  while (c[d] > c[d + 1]) d++;
+  let maxval = -1, maxpos = -1;
+  for (let i = d; i < buf2.length; i++) {
+    if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
+  }
+  let T0 = maxpos;
+
+  const x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
+  const a = (x1 + x3 - 2 * x2) / 2;
+  const b = (x3 - x1) / 2;
+  if (a) T0 = T0 - b / (2 * a);
+
+  return sampleRate / T0;
+}
+
+// All notes for display
+const ALL_NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+
+function freqToNote(freq) {
+  const noteNum = 12 * (Math.log2(freq / 440)) + 69;
+  const rounded = Math.round(noteNum);
+  const cents = Math.round((noteNum - rounded) * 100);
+  const noteName = ALL_NOTES[((rounded % 12) + 12) % 12];
+  const octave = Math.floor(rounded / 12) - 1;
+  return { noteName, octave, cents, full: noteName + octave };
+}
+
+function getClosestString(freq) {
+  const strings = TUNINGS[currentTuning];
+  const target = selectedString !== null ? strings[selectedString] : null;
+  if (target) {
+    const cents = Math.round(1200 * Math.log2(freq / target.freq));
+    return { ...target, cents, idx: selectedString };
+  }
+  // Find closest
+  let best = null, bestDist = Infinity;
+  strings.forEach((s, i) => {
+    const cents = 1200 * Math.log2(freq / s.freq);
+    if (Math.abs(cents) < bestDist) { bestDist = Math.abs(cents); best = { ...s, cents: Math.round(cents), idx: i }; }
+  });
+  return best;
+}
+
+let lastFreqs = [];
+
+function detectPitch() {
+  if (!isListening) return;
+
+  const buf = new Float32Array(analyser.fftSize);
+  analyser.getFloatTimeDomainData(buf);
+  const freq = autoCorrelate(buf, audioCtx.sampleRate);
+
+  if (freq > 60 && freq < 1400) {
+    lastFreqs.push(freq);
+    if (lastFreqs.length > 6) lastFreqs.shift();
+    // Median
+    const sorted = [...lastFreqs].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    smoothedFreq = smoothedFreq ? smoothedFreq * 0.7 + median * 0.3 : median;
+    updateDisplay(smoothedFreq);
+  } else {
+    lastFreqs = [];
+  }
+
+  setTimeout(() => requestAnimationFrame(detectPitch), 60);
+}
+
+// ─── DISPLAY ──────────────────────────────────────────────────────────────────
+function updateDisplay(freq) {
+  const closest = getClosestString(freq);
+  if (!closest) return;
+
+  const { noteName, octave } = freqToNote(freq);
+  const cents = closest.cents;
+  const inTune = Math.abs(cents) <= 5;
+  const flat = cents < -5;
+  const sharp = cents > 5;
+
+  // Note
+  const noteBig = document.getElementById('noteBig');
+  noteBig.textContent = closest.note;
+  noteBig.className = 'note-big ' + (inTune ? 'in-tune' : flat ? 'flat' : 'sharp');
+
+  // Freq
+  document.getElementById('freqVal').textContent = freq.toFixed(1);
+
+  // Cents
+  document.getElementById('centsDisplay').textContent =
+    (cents > 0 ? '+' : '') + cents + ' cents';
+
+  // Needle – clamp to ±50 cents for meter, map to ±42% of track
+  const clampedCents = Math.max(-50, Math.min(50, cents));
+  const offset = (clampedCents / 50) * 42;
+  const needle = document.getElementById('needle');
+  needle.style.transform = `translate(calc(-50% + ${offset}%), -50%)`;
+  needle.className = 'meter-needle' + (inTune ? ' in-tune' : '');
+
+  // Status
+  if (inTune) setStatus('in-tune', '✓ Afinado');
+  else if (flat) setStatus('flat', '▼ Muy bajo');
+  else setStatus('sharp', '▲ Muy alto');
+
+  // Highlight string
+  highlightString(closest.idx);
+}
+
+function highlightString(idx) {
+  document.querySelectorAll('.string-btn').forEach((btn, i) => {
+    if (selectedString === null) {
+      btn.classList.toggle('active', i === idx);
+    }
+  });
+}
+
+function setStatus(cls, text) {
+  const badge = document.getElementById('statusBadge');
+  badge.className = 'status-badge ' + cls;
+  badge.textContent = text;
+}
+
+function resetDisplay() {
+  document.getElementById('noteBig').className = 'note-big idle';
+  document.getElementById('noteBig').textContent = '–';
+  document.getElementById('freqVal').textContent = '– –';
+  document.getElementById('centsDisplay').textContent = '– cents';
+  document.getElementById('needle').className = 'meter-needle';
+  document.getElementById('needle').style.transform = 'translate(-50%, -50%)';
+  setStatus('idle', 'Esperando señal');
+}
+
+// ─── WAVEFORM ─────────────────────────────────────────────────────────────────
+function drawWave() {
+  if (!isListening) return;
+  const canvas = document.getElementById('waveCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+  canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+
+  const W = canvas.width, H = canvas.height;
+  const buf = new Uint8Array(analyser.fftSize);
+  analyser.getByteTimeDomainData(buf);
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(0,229,255,0.5)';
+  ctx.lineWidth = 1.5 * window.devicePixelRatio;
+  ctx.beginPath();
+
+  const sliceW = W / buf.length;
+  let x = 0;
+  for (let i = 0; i < buf.length; i++) {
+    const v = buf[i] / 128.0;
+    const y = (v * H) / 2;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+    x += sliceW;
+  }
+  ctx.stroke();
+
+  animFrame = requestAnimationFrame(drawWave);
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+buildTuningGrid();
+buildStringsGrid();
+</script>
+</body>
+</html>
