@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Afinador de Guitarra</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #08080f; --surface: #111118; --surface2: #1a1a24; --surface3: #222230;
+  --accent: #00e5ff; --accent2: #ff006e; --accent3: #76ff03;
+  --warn: #ffab00; --text: #e8e8f0; --text-dim: #6b6b80;
+  --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.12);
+  --glow: 0 0 30px rgba(0,229,255,0.25);
+  --glow-green: 0 0 40px rgba(118,255,3,0.4);
+  --glow-red: 0 0 40px rgba(255,0,110,0.4);
+}
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow: hidden; user-select: none; -webkit-user-select: none; }
+body { display: flex; flex-direction: column; align-items: center; min-height: 100vh; min-height: 100dvh; position: relative; }
+body::before { content: ''; position: fixed; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(ellipse at 30% 20%, rgba(0,229,255,0.04) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(255,0,110,0.04) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+
+.app { position: relative; z-index: 1; width: 100%; max-width: 480px; height: 100vh; height: 100dvh; display: flex; flex-direction: column; padding: 14px 16px; gap: 10px; overflow: hidden; }
+
+/* HEADER */
+.header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.logo { font-family: 'Orbitron', monospace; font-weight: 900; font-size: 16px; letter-spacing: 3px; color: var(--accent); }
+.mic-btn { background: none; border: 1.5px solid var(--border); border-radius: 50px; padding: 7px 16px; color: var(--text-dim); font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 1px; cursor: pointer; transition: all 0.3s; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+.mic-btn.active { border-color: var(--accent2); color: var(--accent2); animation: pulse-btn 2s infinite; }
+@keyframes pulse-btn { 0%,100%{box-shadow:0 0 15px rgba(255,0,110,0.3)}50%{box-shadow:0 0 25px rgba(255,0,110,0.5)} }
+.mic-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.mic-btn.active .mic-dot { animation: blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:0.2} }
+
+/* TUNING ROW */
+.tuning-row { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.section-label { font-size: 10px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); white-space: nowrap; }
+.tuning-scroll { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; flex: 1; scrollbar-width: none; }
+.tuning-scroll::-webkit-scrollbar { display: none; }
+.tuning-chip { background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 11px; font-weight: 500; color: var(--text-dim); cursor: pointer; transition: all 0.2s; white-space: nowrap; flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
+.tuning-chip:hover { border-color: rgba(0,229,255,0.3); color: var(--text); }
+.tuning-chip.selected { background: rgba(0,229,255,0.1); border-color: var(--accent); color: var(--accent); }
+.tuning-chip .del-chip { font-size: 12px; opacity: 0; transition: opacity 0.2s; color: var(--accent2); line-height: 1; padding: 0 2px; }
+.tuning-chip.selected:hover .del-chip { opacity: 1; }
+.add-tuning-btn { background: none; border: 1.5px dashed var(--border2); border-radius: 8px; padding: 6px 10px; color: var(--text-dim); font-size: 18px; cursor: pointer; transition: all 0.2s; flex-shrink: 0; line-height: 1; }
+.add-tuning-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* MAIN DISPLAY */
+.main-display { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; min-height: 0; }
+.note-display { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.note-big { font-family: 'Orbitron', monospace; font-weight: 900; font-size: clamp(72px, 20vw, 110px); line-height: 1; color: var(--text); transition: color 0.3s, text-shadow 0.3s; letter-spacing: -2px; }
+.note-big.in-tune { color: var(--accent3); text-shadow: var(--glow-green); }
+.note-big.flat { color: var(--accent); text-shadow: var(--glow); }
+.note-big.sharp { color: var(--accent2); text-shadow: var(--glow-red); }
+.note-big.idle { color: var(--text-dim); }
+.freq-display { font-family: 'Orbitron', monospace; font-size: 13px; color: var(--text-dim); letter-spacing: 2px; }
+.freq-display span { color: var(--text); font-weight: 700; }
+
+.meter-container { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.meter-track { position: relative; width: 100%; height: 8px; background: var(--surface2); border-radius: 4px; }
+.meter-zones { position: absolute; inset: 0; border-radius: 4px; overflow: hidden; display: flex; }
+.zone { flex: 1; opacity: 0.15; }
+.zone.left { background: linear-gradient(to right, var(--accent2), transparent); }
+.zone.center { background: var(--accent3); opacity: 0.2; flex: 0.3; }
+.zone.right { background: linear-gradient(to left, var(--accent), transparent); }
+.meter-center-mark { position: absolute; top: -4px; left: 50%; transform: translateX(-50%); width: 2px; height: 16px; background: var(--text-dim); border-radius: 1px; opacity: 0.5; }
+.meter-needle { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 16px; height: 16px; border-radius: 50%; background: var(--text-dim); transition: transform 0.12s cubic-bezier(0.34,1.56,0.64,1), background 0.2s, width 0.2s, height 0.2s; box-shadow: 0 0 12px rgba(255,255,255,0.3); z-index: 2; }
+.meter-needle.in-tune { background: var(--accent3); box-shadow: 0 0 20px rgba(118,255,3,0.7); width: 20px; height: 20px; }
+.meter-labels { display: flex; justify-content: space-between; width: 100%; font-size: 10px; color: var(--text-dim); }
+.cents-display { font-family: 'Orbitron', monospace; font-size: 12px; color: var(--text-dim); letter-spacing: 1px; }
+.status-badge { padding: 5px 18px; border-radius: 50px; font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; border: 1.5px solid; transition: all 0.3s; }
+.status-badge.idle { border-color: var(--border); color: var(--text-dim); }
+.status-badge.in-tune { border-color: var(--accent3); color: var(--accent3); box-shadow: var(--glow-green); }
+.status-badge.flat { border-color: var(--accent); color: var(--accent); box-shadow: var(--glow); }
+.status-badge.sharp { border-color: var(--accent2); color: var(--accent2); box-shadow: var(--glow-red); }
+.status-badge.listening { border-color: var(--warn); color: var(--warn); }
+
+/* WAVEFORM */
+.visualizer { width: 100%; height: 44px; border-radius: 8px; overflow: hidden; background: var(--surface); border: 1px solid var(--border); flex-shrink: 0; }
+canvas { width: 100%; height: 100%; display: block; }
+
+/* STRINGS */
+.strings-section { flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; }
+.strings-grid { display: flex; gap: 6px; justify-content: center; }
+.string-btn { flex: 1; background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 3px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; transition: all 0.2s; min-width: 0; position: relative; }
+.string-btn:hover { border-color: rgba(0,229,255,0.3); background: var(--surface2); }
+.string-btn.active { background: rgba(0,229,255,0.08); border-color: var(--accent); box-shadow: 0 0 12px rgba(0,229,255,0.15); }
+.string-number { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; }
+.string-note { font-family: 'Orbitron', monospace; font-weight: 700; font-size: 14px; color: var(--text); transition: color 0.2s; }
+.string-btn.active .string-note { color: var(--accent); }
+.string-freq { font-size: 9px; color: var(--text-dim); }
+.edit-string-btn { position: absolute; top: 3px; right: 3px; background: none; border: none; color: var(--text-dim); font-size: 9px; cursor: pointer; opacity: 0; transition: opacity 0.2s; padding: 2px; line-height: 1; z-index: 2; }
+.string-btn:hover .edit-string-btn { opacity: 0.7; }
+.edit-string-btn:hover { opacity: 1 !important; color: var(--accent); }
+
+/* ── MODALS ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; display: flex; align-items: flex-end; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.25s; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal { background: var(--surface); border: 1px solid var(--border2); border-radius: 20px 20px 0 0; width: 100%; max-width: 480px; padding: 20px 20px 40px; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32,0.72,0,1); display: flex; flex-direction: column; gap: 18px; max-height: 90vh; overflow-y: auto; }
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border2); margin: 0 auto -6px; }
+.modal-title { font-family: 'Orbitron', monospace; font-size: 13px; font-weight: 700; letter-spacing: 2px; color: var(--accent); text-align: center; }
+.modal-subtitle { font-size: 12px; color: var(--text-dim); text-align: center; margin-top: -10px; line-height: 1.5; }
+
+.tuning-name-input { background: var(--surface2); border: 1.5px solid var(--border2); border-radius: 10px; padding: 12px 16px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; width: 100%; outline: none; transition: border-color 0.2s; -webkit-appearance: none; }
+.tuning-name-input:focus { border-color: var(--accent); }
+.tuning-name-input::placeholder { color: var(--text-dim); }
+
+.string-rows { display: flex; flex-direction: column; gap: 8px; }
+.string-row { display: flex; align-items: center; gap: 8px; }
+.string-row-label { font-size: 11px; color: var(--text-dim); width: 22px; text-align: center; flex-shrink: 0; }
+.note-select, .octave-select { background: var(--surface2); border: 1.5px solid var(--border2); border-radius: 8px; padding: 9px 8px; color: var(--text); font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; outline: none; cursor: pointer; transition: border-color 0.2s; -webkit-appearance: none; appearance: none; text-align: center; }
+.note-select { flex: 1; }
+.octave-select { width: 50px; flex-shrink: 0; color: var(--text-dim); }
+.note-select:focus, .octave-select:focus { border-color: var(--accent); }
+.freq-preview { font-family: 'Orbitron', monospace; font-size: 10px; color: var(--text-dim); width: 54px; text-align: right; flex-shrink: 0; }
+
+.modal-btns { display: flex; gap: 10px; margin-top: 2px; }
+.btn-cancel { flex: 1; background: var(--surface2); border: 1.5px solid var(--border2); border-radius: 10px; padding: 13px; color: var(--text-dim); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-save { flex: 2; background: rgba(0,229,255,0.12); border: 1.5px solid var(--accent); border-radius: 10px; padding: 13px; color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: 1px; cursor: pointer; transition: all 0.2s; font-family: 'Orbitron', monospace; }
+.btn-save:hover { background: rgba(0,229,255,0.2); }
+
+/* edit single string */
+.note-picker { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; }
+.note-pick-btn { background: var(--surface2); border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 12px; font-family: 'Orbitron', monospace; font-size: 13px; font-weight: 700; color: var(--text-dim); cursor: pointer; transition: all 0.2s; min-width: 50px; text-align: center; }
+.note-pick-btn:hover { border-color: rgba(0,229,255,0.4); color: var(--text); }
+.note-pick-btn.selected { background: rgba(0,229,255,0.12); border-color: var(--accent); color: var(--accent); }
+.octave-picker { display: flex; gap: 7px; justify-content: center; flex-wrap: wrap; }
+.oct-btn { background: var(--surface2); border: 1.5px solid var(--border); border-radius: 8px; padding: 9px 16px; font-family: 'Orbitron', monospace; font-size: 13px; color: var(--text-dim); cursor: pointer; transition: all 0.2s; }
+.oct-btn.selected { background: rgba(118,255,3,0.1); border-color: var(--accent3); color: var(--accent3); }
+.edit-freq-preview { font-family: 'Orbitron', monospace; font-size: 20px; font-weight: 700; color: var(--accent); text-align: center; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="logo">TUNR</div>
+    <button class="mic-btn" id="micBtn" onclick="toggleMic()">
+      <span class="mic-dot"></span>
+      <span id="micLabel">Activar mic</span>
+    </button>
+  </div>
+
+  <div class="tuning-row">
+    <span class="section-label">Afinación</span>
+    <div class="tuning-scroll" id="tuningScroll"></div>
+    <button class="add-tuning-btn" onclick="openNewTuningModal()" title="Nueva afinación">＋</button>
+  </div>
+
+  <div class="main-display">
+    <div class="note-display">
+      <div class="note-big idle" id="noteBig">–</div>
+      <div class="freq-display"><span id="freqVal">– –</span> Hz</div>
+    </div>
+    <div class="meter-container">
+      <div class="meter-track">
+        <div class="meter-zones">
+          <div class="zone left"></div>
+          <div class="zone center"></div>
+          <div class="zone right"></div>
+        </div>
+        <div class="meter-center-mark"></div>
+        <div class="meter-needle" id="needle"></div>
+      </div>
+      <div class="meter-labels"><span>♭ Bajo</span><span>Afinado</span><span>Alto ♯</span></div>
+    </div>
+    <div class="cents-display" id="centsDisplay">– cents</div>
+    <div class="status-badge idle" id="statusBadge">Esperando señal</div>
+  </div>
+
+  <div class="visualizer"><canvas id="waveCanvas"></canvas></div>
+
+  <div class="strings-section">
+    <div class="section-label">Cuerdas — toca para fijar · ✏️ para editar nota</div>
+    <div class="strings-grid" id="stringsGrid"></div>
+  </div>
+</div>
+
+<!-- MODAL: Nueva / editar afinación -->
+<div class="modal-overlay" id="newTuningModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="newTuningTitle">NUEVA AFINACIÓN</div>
+    <p class="modal-subtitle">Ajusta cada cuerda y dale un nombre</p>
+    <input class="tuning-name-input" id="tuningNameInput" type="text" placeholder="Nombre de la afinación..." maxlength="28">
+    <div class="string-rows" id="stringRowsContainer"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('newTuningModal')">Cancelar</button>
+      <button class="btn-save" onclick="saveTuning()">GUARDAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Editar cuerda individual -->
+<div class="modal-overlay" id="editStringModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="editStringTitle">CUERDA 1ª</div>
+    <div class="edit-freq-preview" id="editFreqPreview">–</div>
+    <div>
+      <div class="section-label" style="margin-bottom:10px">Nota</div>
+      <div class="note-picker" id="notePicker"></div>
+    </div>
+    <div>
+      <div class="section-label" style="margin-bottom:10px">Octava</div>
+      <div class="octave-picker" id="octavePicker"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('editStringModal')">Cancelar</button>
+      <button class="btn-save" onclick="applyStringEdit()">APLICAR</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONSTANTS ──
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const A4 = 440;
+function noteToFreq(note, octave) {
+  const idx = NOTE_NAMES.indexOf(note);
+  if (idx === -1) return 0;
+  return A4 * Math.pow(2, ((octave + 1) * 12 + idx - 69) / 12);
+}
+
+// ── DEFAULT TUNINGS ──
+const DEFAULT_TUNINGS = {
+  'Estándar':        [['E',2],['A',2],['D',3],['G',3],['B',3],['E',4]],
+  'Drop D':          [['D',2],['A',2],['D',3],['G',3],['B',3],['E',4]],
+  'Open G':          [['D',2],['G',2],['D',3],['G',3],['B',3],['D',4]],
+  'Open D':          [['D',2],['A',2],['D',3],['F#',3],['A',3],['D',4]],
+  'DADGAD':          [['D',2],['A',2],['D',3],['G',3],['A',3],['D',4]],
+  'Eb':              [['D#',2],['G#',2],['C#',3],['F#',3],['A#',3],['D#',4]],
+  'Drop C':          [['C',2],['G',2],['C',3],['F',3],['A',3],['D',4]],
+  'Open E':          [['E',2],['B',2],['E',3],['G#',3],['B',3],['E',4]],
+};
+const LABELS = ['6ª','5ª','4ª','3ª','2ª','1ª'];
+
+function makeTuningStrings(raw) {
+  return raw.map((r, i) => ({ note: r[0], octave: r[1], label: LABELS[i] }));
+}
+
+// ── STATE ──
+function loadCustom() { try { return JSON.parse(localStorage.getItem('tunr_v2') || '{}'); } catch(e) { return {}; } }
+function saveCustom() { try { localStorage.setItem('tunr_v2', JSON.stringify(customTunings)); } catch(e) {} }
+
+let customTunings = loadCustom();
+let currentTuning = 'Estándar';
+let selectedString = null;
+let audioCtx = null, analyser = null, source = null, animFrame = null;
+let isListening = false, smoothedFreq = null, lastFreqs = [];
+let editingTuningName = null, tempStrings = [];
+let editingStringIdx = null, tempNote = 'E', tempOctave = 4;
+
+function allTunings() {
+  const out = {};
+  Object.entries(DEFAULT_TUNINGS).forEach(([k,v]) => out[k] = makeTuningStrings(v));
+  Object.entries(customTunings).forEach(([k,v]) => out[k] = v);
+  return out;
+}
+function getCurrentStrings() {
+  return allTunings()[currentTuning].map(s => ({ ...s, freq: noteToFreq(s.note, s.octave) }));
+}
+
+// ── BUILD UI ──
+function buildTuningScroll() {
+  const scroll = document.getElementById('tuningScroll');
+  scroll.innerHTML = '';
+  Object.keys(allTunings()).forEach(name => {
+    const isCustom = !!customTunings[name];
+    const chip = document.createElement('button');
+    chip.className = 'tuning-chip' + (name === currentTuning ? ' selected' : '');
+    chip.innerHTML = `<span class="chip-label">${name}</span>` +
+      (isCustom ? `<span class="del-chip" title="Eliminar">✕</span>` : '');
+
+    chip.querySelector('.chip-label').addEventListener('click', () => selectTuning(name));
+
+    if (isCustom) {
+      chip.querySelector('.del-chip').addEventListener('click', e => {
+        e.stopPropagation();
+        if (confirm(`¿Eliminar "${name}"?`)) {
+          delete customTunings[name];
+          saveCustom();
+          if (currentTuning === name) currentTuning = 'Estándar';
+          buildTuningScroll(); buildStringsGrid(); resetDisplay();
+        }
+      });
+      // double-click / long-press to edit
+      let pressTimer;
+      chip.addEventListener('touchstart', () => pressTimer = setTimeout(() => openEditTuningModal(name), 650), {passive:true});
+      chip.addEventListener('touchend', () => clearTimeout(pressTimer), {passive:true});
+      chip.addEventListener('dblclick', () => openEditTuningModal(name));
+    }
+    scroll.appendChild(chip);
+  });
+}
+
+function buildStringsGrid() {
+  const grid = document.getElementById('stringsGrid');
+  grid.innerHTML = '';
+  getCurrentStrings().forEach((str, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'string-btn' + (selectedString === i ? ' active' : '');
+    btn.innerHTML = `
+      <button class="edit-string-btn" title="Editar">✏️</button>
+      <span class="string-number">${str.label}</span>
+      <span class="string-note">${str.note}${str.octave}</span>
+      <span class="string-freq">${str.freq.toFixed(1)} Hz</span>`;
+    btn.addEventListener('click', () => { selectedString = selectedString === i ? null : i; buildStringsGrid(); });
+    btn.querySelector('.edit-string-btn').addEventListener('click', e => { e.stopPropagation(); openEditStringModal(i); });
+    grid.appendChild(btn);
+  });
+}
+
+function selectTuning(name) { currentTuning = name; selectedString = null; buildTuningScroll(); buildStringsGrid(); resetDisplay(); }
+
+// ── NEW / EDIT TUNING MODAL ──
+function openNewTuningModal() {
+  editingTuningName = null;
+  tempStrings = getCurrentStrings().map(s => ({ note: s.note, octave: s.octave, label: s.label }));
+  document.getElementById('tuningNameInput').value = '';
+  document.getElementById('newTuningTitle').textContent = 'NUEVA AFINACIÓN';
+  buildStringRows();
+  openModal('newTuningModal');
+}
+
+function openEditTuningModal(name) {
+  editingTuningName = name;
+  tempStrings = customTunings[name].map(s => ({ ...s }));
+  document.getElementById('tuningNameInput').value = name;
+  document.getElementById('newTuningTitle').textContent = 'EDITAR AFINACIÓN';
+  buildStringRows();
+  openModal('newTuningModal');
+}
+
+function buildStringRows() {
+  const c = document.getElementById('stringRowsContainer');
+  c.innerHTML = '';
+  tempStrings.forEach((str, i) => {
+    const row = document.createElement('div');
+    row.className = 'string-row';
+    const noteOpts = NOTE_NAMES.map(n => `<option value="${n}"${n===str.note?' selected':''}>${n}</option>`).join('');
+    const octOpts = [1,2,3,4,5,6].map(o => `<option value="${o}"${o===str.octave?' selected':''}>${o}</option>`).join('');
+    row.innerHTML = `
+      <span class="string-row-label">${str.label}</span>
+      <select class="note-select">${noteOpts}</select>
+      <select class="octave-select">${octOpts}</select>
+      <span class="freq-preview" id="fp${i}">${noteToFreq(str.note,str.octave).toFixed(1)} Hz</span>`;
+    row.querySelector('.note-select').onchange = e => { tempStrings[i].note=e.target.value; refreshFP(i); };
+    row.querySelector('.octave-select').onchange = e => { tempStrings[i].octave=parseInt(e.target.value); refreshFP(i); };
+    c.appendChild(row);
+  });
+}
+function refreshFP(i) { const el=document.getElementById('fp'+i); if(el) el.textContent=noteToFreq(tempStrings[i].note,tempStrings[i].octave).toFixed(1)+' Hz'; }
+
+function saveTuning() {
+  const name = document.getElementById('tuningNameInput').value.trim();
+  if (!name) { document.getElementById('tuningNameInput').focus(); return; }
+  if (DEFAULT_TUNINGS[name]) { alert('Ese nombre es de una afinación por defecto. Elige otro nombre.'); return; }
+  if (editingTuningName && editingTuningName !== name) delete customTunings[editingTuningName];
+  customTunings[name] = tempStrings.map(s => ({ note:s.note, octave:s.octave, label:s.label }));
+  saveCustom();
+  currentTuning = name; selectedString = null;
+  closeModal('newTuningModal');
+  buildTuningScroll(); buildStringsGrid(); resetDisplay();
+}
+
+// ── EDIT SINGLE STRING MODAL ──
+function openEditStringModal(idx) {
+  editingStringIdx = idx;
+  const str = getCurrentStrings()[idx];
+  tempNote = str.note; tempOctave = str.octave;
+  document.getElementById('editStringTitle').textContent = 'CUERDA ' + str.label;
+  buildNotePicker(); buildOctavePicker(); refreshEditPreview();
+  openModal('editStringModal');
+}
+function buildNotePicker() {
+  document.getElementById('notePicker').innerHTML = '';
+  NOTE_NAMES.forEach(n => {
+    const b = document.createElement('button');
+    b.className = 'note-pick-btn' + (n === tempNote ? ' selected' : '');
+    b.textContent = n;
+    b.onclick = () => { tempNote = n; buildNotePicker(); refreshEditPreview(); };
+    document.getElementById('notePicker').appendChild(b);
+  });
+}
+function buildOctavePicker() {
+  document.getElementById('octavePicker').innerHTML = '';
+  [1,2,3,4,5,6].forEach(o => {
+    const b = document.createElement('button');
+    b.className = 'oct-btn' + (o === tempOctave ? ' selected' : '');
+    b.textContent = o;
+    b.onclick = () => { tempOctave = o; buildOctavePicker(); refreshEditPreview(); };
+    document.getElementById('octavePicker').appendChild(b);
+  });
+}
+function refreshEditPreview() {
+  const f = noteToFreq(tempNote, tempOctave);
+  document.getElementById('editFreqPreview').textContent = `${tempNote}${tempOctave}  ·  ${f.toFixed(2)} Hz`;
+}
+
+function applyStringEdit() {
+  // Clone current tuning as custom if needed
+  let strings = allTunings()[currentTuning].map(s => ({ note:s.note, octave:s.octave, label:s.label }));
+  strings[editingStringIdx].note = tempNote;
+  strings[editingStringIdx].octave = tempOctave;
+
+  if (DEFAULT_TUNINGS[currentTuning]) {
+    // Create modified copy — suggest a name
+    let newName = currentTuning + ' (custom)';
+    let n = 2;
+    while (customTunings[newName]) newName = currentTuning + ` (custom ${n++})`;
+    customTunings[newName] = strings;
+    saveCustom();
+    currentTuning = newName;
+  } else {
+    customTunings[currentTuning] = strings;
+    saveCustom();
+  }
+  closeModal('editStringModal');
+  buildTuningScroll(); buildStringsGrid(); resetDisplay();
+}
+
+// ── MODALS ──
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if (e.target === o) closeModal(o.id); });
+});
+
+// ── MICROPHONE ──
+async function toggleMic() {
+  if (isListening) { stopMic(); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 8192; analyser.smoothingTimeConstant = 0.5;
+    source = audioCtx.createMediaStreamSource(stream);
+    source.connect(analyser);
+    isListening = true;
+    document.getElementById('micBtn').classList.add('active');
+    document.getElementById('micLabel').textContent = 'Escuchando';
+    setStatus('listening', 'Escuchando...');
+    detectPitch(); drawWave();
+  } catch(e) { alert('No se pudo acceder al micrófono: ' + e.message); }
+}
+function stopMic() {
+  isListening = false;
+  if (animFrame) cancelAnimationFrame(animFrame);
+  if (source) source.disconnect();
+  if (audioCtx) audioCtx.close();
+  audioCtx = null; analyser = null; source = null;
+  document.getElementById('micBtn').classList.remove('active');
+  document.getElementById('micLabel').textContent = 'Activar mic';
+  resetDisplay();
+}
+
+// ── PITCH DETECTION ──
+function autoCorrelate(buf, sr) {
+  const N = buf.length; let rms = 0;
+  for (let i = 0; i < N; i++) rms += buf[i]*buf[i];
+  if (Math.sqrt(rms/N) < 0.01) return -1;
+  let r1=0, r2=N-1;
+  for (let i=0;i<N/2;i++){if(Math.abs(buf[i])<0.2){r1=i;break;}}
+  for (let i=1;i<N/2;i++){if(Math.abs(buf[N-i])<0.2){r2=N-i;break;}}
+  const b=buf.slice(r1,r2), c=new Float32Array(b.length).fill(0);
+  for(let i=0;i<b.length;i++) for(let j=0;j<b.length-i;j++) c[i]+=b[j]*b[j+i];
+  let d=0; while(c[d]>c[d+1])d++;
+  let mx=-1,mp=-1;
+  for(let i=d;i<b.length;i++){if(c[i]>mx){mx=c[i];mp=i;}}
+  let T=mp;
+  const x1=c[T-1],x2=c[T],x3=c[T+1],a=(x1+x3-2*x2)/2,bv=(x3-x1)/2;
+  if(a) T=T-bv/(2*a);
+  return sr/T;
+}
+function getClosestString(freq) {
+  const strings = getCurrentStrings();
+  if (selectedString !== null) {
+    const s = strings[selectedString];
+    return { ...s, cents: Math.round(1200*Math.log2(freq/s.freq)), idx: selectedString };
+  }
+  let best=null, bestD=Infinity;
+  strings.forEach((s,i)=>{ const c=1200*Math.log2(freq/s.freq); if(Math.abs(c)<bestD){bestD=Math.abs(c);best={...s,cents:Math.round(c),idx:i};} });
+  return best;
+}
+function detectPitch() {
+  if (!isListening) return;
+  const buf = new Float32Array(analyser.fftSize);
+  analyser.getFloatTimeDomainData(buf);
+  const freq = autoCorrelate(buf, audioCtx.sampleRate);
+  if (freq > 55 && freq < 1500) {
+    lastFreqs.push(freq); if(lastFreqs.length>6) lastFreqs.shift();
+    const sorted=[...lastFreqs].sort((a,b)=>a-b);
+    const median=sorted[Math.floor(sorted.length/2)];
+    smoothedFreq = smoothedFreq ? smoothedFreq*0.7+median*0.3 : median;
+    updateDisplay(smoothedFreq);
+  } else { lastFreqs=[]; }
+  setTimeout(()=>requestAnimationFrame(detectPitch), 60);
+}
+
+// ── DISPLAY ──
+function updateDisplay(freq) {
+  const cl = getClosestString(freq); if(!cl) return;
+  const cents=cl.cents, inTune=Math.abs(cents)<=5, flat=cents<-5;
+  const nb=document.getElementById('noteBig');
+  nb.textContent=cl.note+cl.octave;
+  nb.className='note-big '+(inTune?'in-tune':flat?'flat':'sharp');
+  document.getElementById('freqVal').textContent=freq.toFixed(1);
+  document.getElementById('centsDisplay').textContent=(cents>0?'+':'')+cents+' cents';
+  const offset=(Math.max(-50,Math.min(50,cents))/50)*42;
+  const needle=document.getElementById('needle');
+  needle.style.transform=`translate(calc(-50% + ${offset}%),-50%)`;
+  needle.className='meter-needle'+(inTune?' in-tune':'');
+  setStatus(inTune?'in-tune':flat?'flat':'sharp', inTune?'✓ Afinado':flat?'▼ Muy bajo':'▲ Muy alto');
+  if(selectedString===null) document.querySelectorAll('.string-btn').forEach((b,i)=>b.classList.toggle('active',i===cl.idx));
+}
+function setStatus(cls, text) { const b=document.getElementById('statusBadge'); b.className='status-badge '+cls; b.textContent=text; }
+function resetDisplay() {
+  document.getElementById('noteBig').className='note-big idle';
+  document.getElementById('noteBig').textContent='–';
+  document.getElementById('freqVal').textContent='– –';
+  document.getElementById('centsDisplay').textContent='– cents';
+  const n=document.getElementById('needle'); n.className='meter-needle'; n.style.transform='translate(-50%,-50%)';
+  setStatus('idle','Esperando señal');
+}
+
+function drawWave() {
+  if (!isListening) return;
+  const canvas=document.getElementById('waveCanvas'), ctx=canvas.getContext('2d');
+  canvas.width=canvas.offsetWidth*devicePixelRatio; canvas.height=canvas.offsetHeight*devicePixelRatio;
+  const W=canvas.width, H=canvas.height, buf=new Uint8Array(analyser.fftSize);
+  analyser.getByteTimeDomainData(buf);
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle='rgba(0,229,255,0.5)'; ctx.lineWidth=1.5*devicePixelRatio; ctx.beginPath();
+  const sw=W/buf.length; let x=0;
+  for(let i=0;i<buf.length;i++){const y=(buf[i]/128)*H/2;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);x+=sw;}
+  ctx.stroke();
+  animFrame=requestAnimationFrame(drawWave);
+}
+
+// ── INIT ──
+buildTuningScroll();
+buildStringsGrid();
+</script>
+</body>
+</html>
